@@ -17,12 +17,11 @@
 -export([decode_value_with_size/2, encode_value_with_size/2, decode_type/1]).
 
 -type type() :: native() | {list | set, native()} | {map, native(), native()} | {custom, string()}.
--type native() :: ascii | bigint | blob | boolean | counter | decimal | double |
-                  float | int | text | timestamp | uuid | varchar | varint |
+-type native() :: ascii | bigint | blob | boolean | counter | double |
+                  float | int | text | timestamp | uuid | varchar |
                   timeuuid | inet.
--type decimal() :: {Unscaled :: integer(), Scale :: integer()}.
 -type value() :: null | integer() | binary() | boolean() | float() | inet:ip_address() |
-                 decimal() | list() | dict() | set().
+                 list() | dict() | set().
 -export_type([type/0, value/0]).
 
 %% -------------------------------------------------------------------------
@@ -50,11 +49,6 @@ decode_value(boolean, <<1>>) ->
 decode_value(counter, <<Value:64/signed>>) ->
     Value;
 
-decode_value(decimal, Bytes) ->
-    % don't convert to float - will loose precision.
-    <<Scale:32/signed, Rest/binary>> = Bytes,
-    {decode_value(varint, Rest), Scale};
-
 decode_value(double, <<Value:64/float>>) ->
     Value;
 
@@ -68,11 +62,6 @@ decode_value(timestamp, <<Millis:64/signed>>) ->
     {Millis div 1000000000,
      (Millis div 1000) rem 1000000,
      (Millis * 1000) rem 1000000};
-
-decode_value(varint, Bytes) ->
-    Size = size(Bytes),
-    <<Value:Size/signed-unit:8>> = Bytes,
-    Value;
 
 decode_value(inet, Bytes) when size(Bytes) =:= 4 ->
     list_to_tuple(binary_to_list(Bytes));
@@ -155,10 +144,6 @@ encode_value(boolean, true) ->
 encode_value(counter, Value) ->
     <<Value:64/signed>>;
 
-encode_value(decimal, {Unscaled, Scale}) ->
-    %% don't convert to float - will loose precision.
-    <<Scale:32/signed, (encode_value(varint, Unscaled))/binary>>;
-
 encode_value(double, Value) ->
     <<Value:64/float>>;
 
@@ -170,10 +155,6 @@ encode_value(int, Value) ->
 
 encode_value(timestamp, {MegaSeconds, Seconds, MicroSeconds}) ->
     <<((MegaSeconds * 1000000 + Seconds) * 1000 + MicroSeconds div 1000):64/signed>>;
-
-encode_value(varint, Value) ->
-    <<_Size:32, Bytes/binary>> = crypto:mpint(Value),
-    Bytes;
 
 encode_value(inet, {O1, O2, O3, O4}) ->
     <<O1, O2, O3, O4>>;
@@ -249,7 +230,6 @@ code_to_type(16#02) -> bigint;
 code_to_type(16#03) -> blob;
 code_to_type(16#04) -> boolean;
 code_to_type(16#05) -> counter;
-code_to_type(16#06) -> decimal;
 code_to_type(16#07) -> double;
 code_to_type(16#08) -> float;
 code_to_type(16#09) -> int;
@@ -257,6 +237,5 @@ code_to_type(16#0A) -> text; % never actually occurs.
 code_to_type(16#0B) -> timestamp;
 code_to_type(16#0C) -> uuid;
 code_to_type(16#0D) -> varchar;
-code_to_type(16#0E) -> varint;
 code_to_type(16#0F) -> timeuuid;
 code_to_type(16#10) -> inet.
