@@ -19,6 +19,7 @@
 -include("seestar_messages.hrl").
 
 %% API exports.
+-export([start/3]).
 -export([start_link/2, start_link/3, start_link/4, stop/1]).
 -export([perform/3, perform_async/3]).
 -export([prepare/2, execute/5, execute_async/5]).
@@ -83,6 +84,17 @@ start_link(Host, Port, ClientOptions, ConnectOptions) ->
         Error ->
             Error
     end.
+
+start(Host, Port, ClientOptions) ->
+  case gen_server:start(?MODULE, [Host, Port, []], []) of
+    {ok, Pid} ->
+      case setup(Pid, ClientOptions) of
+        ok -> {ok, Pid};
+        Error -> stop(Pid), Error
+      end;
+    Error ->
+      Error
+  end.
 
 setup(Pid, Options) ->
     case authenticate(Pid, Options) of
