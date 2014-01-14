@@ -264,7 +264,7 @@ send_request(#req{op = Op, body = Body, from = From, sync = Sync}, St) ->
     Frame = seestar_frame:new(ID, [], Op, Body),
     case gen_tcp:send(St#st.sock, seestar_frame:encode(Frame)) of
         ok ->
-            {ok, St#st{free_ids = tl(St#st.free_ids), reqs = dict:store(ID,{From, Sync},St#st.reqs)}};
+            {ok, St#st{free_ids = tl(St#st.free_ids), reqs = dict:store(ID, {From, Sync}, St#st.reqs)}};
         {error, _Reason} = Error ->
             Error
     end.
