@@ -54,7 +54,7 @@
          incomplete = <<>> :: binary(),
          free_ids :: [seestar_frame:stream_id()],
          backlog = queue:new() :: queue(),
-         reqs :: ets:tid()}).
+         reqs :: dict()}).
 
 %% -------------------------------------------------------------------------
 %% API
@@ -232,7 +232,7 @@ init([Host, Port, ConnectOptions]) ->
         {ok, Sock} ->
             ok = inet:setopts(Sock, [binary, {packet, 0}, {active, true}]),
             {ok, #st{host = Host, sock = Sock, free_ids = lists:seq(0, 127),
-                     reqs = ets:new(seestar_reqs, [])}};
+                     reqs = dict:new()}};
         {error, Reason} ->
             {stop, {connection_error, Reason}}
     end.
@@ -264,8 +264,7 @@ send_request(#req{op = Op, body = Body, from = From, sync = Sync}, St) ->
     Frame = seestar_frame:new(ID, [], Op, Body),
     case gen_tcp:send(St#st.sock, seestar_frame:encode(Frame)) of
         ok ->
-            ets:insert(St#st.reqs, {ID, From, Sync}),
-            {ok, St#st{free_ids = tl(St#st.free_ids)}};
+            {ok, St#st{free_ids = tl(St#st.free_ids), reqs = dict:store(ID,{From, Sync},St#st.reqs)}};
         {error, _Reason} = Error ->
             Error
     end.
@@ -307,15 +306,15 @@ handle_event(_Frame, St) ->
 
 handle_response(Frame, St) ->
     ID = seestar_frame:id(Frame),
-    [{ID, From, Sync}] = ets:lookup(St#st.reqs, ID),
-    ets:delete(St#st.reqs, ID),
+    {From, Sync} = dict:fetch(ID, St#st.reqs),
+    UpdatedDict = dict:erase(ID, St#st.reqs),
     Op = seestar_frame:opcode(Frame),
     Body = seestar_frame:body(Frame),
     case Sync of
         true  -> gen_server:reply(From, {Op, Body});
         false -> reply_async(From, Op, Body)
     end,
-    St#st{free_ids = [ID|St#st.free_ids]}.
+    St#st{free_ids = [ID|St#st.free_ids], reqs = UpdatedDict}.
 
 reply_async({Pid, Ref}, Op, Body) ->
     F = fun() ->
