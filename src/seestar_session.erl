@@ -53,8 +53,8 @@
          sock :: inet:socket(),
          incomplete = <<>> :: binary(),
          free_ids :: [seestar_frame:stream_id()],
-         backlog = queue:new() :: queue(),
-         reqs :: dict()}).
+         backlog = queue:new() :: queue:queue(),
+         reqs :: dict:dict()}).
 
 %% -------------------------------------------------------------------------
 %% API
