@@ -21,7 +21,7 @@
                   float | int | text | timestamp | uuid | varchar |
                   timeuuid | inet.
 -type value() :: null | integer() | binary() | boolean() | float() | inet:ip_address() |
-                 list() | dict:dict() | sets:set().
+                 list() | dict() | set().
 -export_type([type/0, value/0]).
 
 %% -------------------------------------------------------------------------
